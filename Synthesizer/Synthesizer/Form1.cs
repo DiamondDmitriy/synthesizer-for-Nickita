@@ -28,13 +28,21 @@ namespace Synthesizer
         {
 
         }
+       private float frequency = 0.1f; //частота мелодии как в пианино 
 
-        private void Form1_KeyDown(object sender, KeyEventArgs e)
+
+        //метод при нажатии клавиши на клаве есть звук
+        private void keySoundBtn(object sender, KeyEventArgs e)
         {
+            IEnumerable<oscillator> oscillators = this.Controls.OfType<oscillator>().Where(o => o.On);//создаём колекцию осициляторов
             short[] wave = new short[SAMPLE_RATE];
-            byte[] binaryWave = new byte[SAMPLE_RATE*sizeof(short)];
-            float frequency = 0.1f; //частота мелодии как в пианино 
-            switch(e.KeyCode){
+            byte[] binaryWave = new byte[SAMPLE_RATE * sizeof(short)];
+
+             int oscillatorsCount = oscillators.Count();
+
+            switch (e.KeyCode)
+            {
+
                 case Keys.Z:
                     frequency = 65.4f; // c2
                     break;
@@ -59,7 +67,7 @@ namespace Synthesizer
 
             }
 
-            foreach (oscillator oscillator in this.Controls.OfType<oscillator>())
+            foreach (oscillator oscillator in oscillators)
             {
                 int samplesPerWaveLenght = (int)(SAMPLE_RATE / frequency);
                 short ampStep = (short)((short.MaxValue * 2) / samplesPerWaveLenght);
@@ -69,16 +77,16 @@ namespace Synthesizer
                 switch (oscillator.WaveForm)
                 {
                     case WaveForm.Sine:
-                    for (int i = 0; i < SAMPLE_RATE; i++)
-                    {
-                        wave[i] = Convert.ToInt16(short.MaxValue * Math.Sin(((Math.PI * 2 * frequency) / SAMPLE_RATE) * i));
-                    }
+                        for (int i = 0; i < SAMPLE_RATE; i++)
+                        {
+                            wave[i] += Convert.ToInt16((short.MaxValue * Math.Sin(((Math.PI * 2 * frequency) / SAMPLE_RATE) * i)) / oscillatorsCount);
+                        }
                         break;
 
                     case WaveForm.Square:
                         for (int i = 0; i < SAMPLE_RATE; i++)
                         {
-                            wave[i] = Convert.ToInt16(short.MaxValue * Math.Sign(Math.Sin((Math.PI * 2 * frequency) / SAMPLE_RATE * i)));
+                            wave[i] += Convert.ToInt16((short.MaxValue * Math.Sign(Math.Sin((Math.PI * 2 * frequency) / SAMPLE_RATE * i))) / oscillatorsCount);
                         }
 
                         break;
@@ -87,10 +95,10 @@ namespace Synthesizer
                         for (int i = 0; i < SAMPLE_RATE; i++)
                         {
                             tempSample -= short.MaxValue;
-                            for (int j = 0; j < samplesPerWaveLenght && i<SAMPLE_RATE; j++)
+                            for (int j = 0; j < samplesPerWaveLenght && i < SAMPLE_RATE; j++)
                             {
                                 tempSample += ampStep;
-                                wave[i++] = Convert.ToInt16(tempSample);
+                                wave[i++] += Convert.ToInt16(tempSample / oscillatorsCount);
                             }
                             i--;
                         }
@@ -100,12 +108,12 @@ namespace Synthesizer
                         tempSample = -short.MaxValue;
                         for (int i = 0; i < SAMPLE_RATE; i++)
                         {
-                            if (Math.Abs(tempSample+ampStep)>short.MaxValue)
+                            if (Math.Abs(tempSample + ampStep) > short.MaxValue)
                             {
                                 ampStep = (short)-ampStep;
                             }
                             tempSample += ampStep;
-                            wave[i] = Convert.ToInt16(tempSample);
+                            wave[i] += Convert.ToInt16(tempSample / oscillatorsCount);
 
                         }
                         break;
@@ -113,7 +121,7 @@ namespace Synthesizer
                     case WaveForm.Noise:
                         for (int i = 0; i < SAMPLE_RATE; i++)
                         {
-                            wave[i] = (short)random.Next(-short.MaxValue, short.MaxValue);
+                            wave[i] += Convert.ToInt16(random.Next(-short.MaxValue, short.MaxValue) / oscillatorsCount);
                         }
                         break;
 
@@ -130,18 +138,18 @@ namespace Synthesizer
             {
                 short blocklign = BIT_PER_SEMPLE / 8;//число каналов
                 int subChunckTwoSize = SAMPLE_RATE * blocklign;
-                binaryWritter.Write(new[] {'R','I','F','F' });
-                binaryWritter.Write(36+subChunckTwoSize);
+                binaryWritter.Write(new[] { 'R', 'I', 'F', 'F' });
+                binaryWritter.Write(36 + subChunckTwoSize);
 
-                binaryWritter.Write(new[] { 'W', 'A', 'V', 'E','f','m','t',' ' } );
+                binaryWritter.Write(new[] { 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ' });
                 binaryWritter.Write(16);
                 binaryWritter.Write((short)1);
                 binaryWritter.Write((short)1);
                 binaryWritter.Write(SAMPLE_RATE);
-                binaryWritter.Write(SAMPLE_RATE* blocklign);
+                binaryWritter.Write(SAMPLE_RATE * blocklign);
                 binaryWritter.Write(blocklign);
                 binaryWritter.Write(BIT_PER_SEMPLE);
-                binaryWritter.Write(new[] {'d','a','t','a' });
+                binaryWritter.Write(new[] { 'd', 'a', 't', 'a' });
                 binaryWritter.Write(subChunckTwoSize);
                 binaryWritter.Write(binaryWave);
 
@@ -151,13 +159,169 @@ namespace Synthesizer
 
 
             }
+        }
 
 
+
+
+
+
+        private void keySoundMs(object sender, EventArgs e)
+        {
+            IEnumerable<oscillator> oscillators = this.Controls.OfType<oscillator>().Where(o => o.On);//создаём колекцию осициляторов
+            short[] wave = new short[SAMPLE_RATE];
+            byte[] binaryWave = new byte[SAMPLE_RATE * sizeof(short)];
+
+            int oscillatorsCount = oscillators.Count();
+
+            foreach (oscillator oscillator in oscillators)
+            {
+                int samplesPerWaveLenght = (int)(SAMPLE_RATE / frequency);
+                short ampStep = (short)((short.MaxValue * 2) / samplesPerWaveLenght);
+                short tempSample = 0;
+                Random random = new Random();
+                //все формулы которые ниже ты найдешь на сайте который я вложил в документ 
+                switch (oscillator.WaveForm)
+                {
+                    case WaveForm.Sine:
+                        for (int i = 0; i < SAMPLE_RATE; i++)
+                        {
+                            wave[i] += Convert.ToInt16((short.MaxValue * Math.Sin(((Math.PI * 2 * frequency) / SAMPLE_RATE) * i)) / oscillatorsCount);
+                        }
+                        break;
+
+                    case WaveForm.Square:
+                        for (int i = 0; i < SAMPLE_RATE; i++)
+                        {
+                            wave[i] += Convert.ToInt16((short.MaxValue * Math.Sign(Math.Sin((Math.PI * 2 * frequency) / SAMPLE_RATE * i))) / oscillatorsCount);
+                        }
+
+                        break;
+
+                    case WaveForm.Saw:
+                        for (int i = 0; i < SAMPLE_RATE; i++)
+                        {
+                            tempSample -= short.MaxValue;
+                            for (int j = 0; j < samplesPerWaveLenght && i < SAMPLE_RATE; j++)
+                            {
+                                tempSample += ampStep;
+                                wave[i++] += Convert.ToInt16(tempSample / oscillatorsCount);
+                            }
+                            i--;
+                        }
+                        break;
+
+                    case WaveForm.Triangle:
+                        tempSample = -short.MaxValue;
+                        for (int i = 0; i < SAMPLE_RATE; i++)
+                        {
+                            if (Math.Abs(tempSample + ampStep) > short.MaxValue)
+                            {
+                                ampStep = (short)-ampStep;
+                            }
+                            tempSample += ampStep;
+                            wave[i] += Convert.ToInt16(tempSample / oscillatorsCount);
+
+                        }
+                        break;
+
+                    case WaveForm.Noise:
+                        for (int i = 0; i < SAMPLE_RATE; i++)
+                        {
+                            wave[i] += Convert.ToInt16(random.Next(-short.MaxValue, short.MaxValue) / oscillatorsCount);
+                        }
+                        break;
+
+
+
+                }
+
+            }
+
+            Buffer.BlockCopy(wave, 0, binaryWave, 0, wave.Length * sizeof(short));
+            //для работы с wav контейнером
+            using (MemoryStream memoryStream = new MemoryStream())
+            using (BinaryWriter binaryWritter = new BinaryWriter(memoryStream))
+            {
+                short blocklign = BIT_PER_SEMPLE / 8;//число каналов
+                int subChunckTwoSize = SAMPLE_RATE * blocklign;
+                binaryWritter.Write(new[] { 'R', 'I', 'F', 'F' });
+                binaryWritter.Write(36 + subChunckTwoSize);
+
+                binaryWritter.Write(new[] { 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ' });
+                binaryWritter.Write(16);
+                binaryWritter.Write((short)1);
+                binaryWritter.Write((short)1);
+                binaryWritter.Write(SAMPLE_RATE);
+                binaryWritter.Write(SAMPLE_RATE * blocklign);
+                binaryWritter.Write(blocklign);
+                binaryWritter.Write(BIT_PER_SEMPLE);
+                binaryWritter.Write(new[] { 'd', 'a', 't', 'a' });
+                binaryWritter.Write(subChunckTwoSize);
+                binaryWritter.Write(binaryWave);
+
+                memoryStream.Position = 0;
+                new SoundPlayer(memoryStream).Play();
+
+
+
+            }
+        }
+
+
+        private void Form1_KeyDown(object sender, KeyEventArgs e)
+        {
+            keySoundBtn(sender, e);
 
         }
 
 
-       
+
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            frequency = 440.0000f;//A4
+            keySoundMs(sender,e);
+        }
+
+        private void button8_Click(object sender, EventArgs e)
+        {
+            frequency = 466.1638f;//A#
+            keySoundMs(sender, e);
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            frequency = 493.8833f;//B4
+            keySoundMs(sender, e);
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            frequency = 523.2511f;
+            keySoundMs(sender, e);
+        }
+
+        private void button9_Click(object sender, EventArgs e)
+        {
+            frequency = 554.3653f;
+            keySoundMs(sender, e);
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     }
 
 

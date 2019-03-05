@@ -70,14 +70,24 @@ namespace Synthesizer
                 control.Click += WaveButton_Click; 
             }
             //конец создания кнопок
+            //добавим чекбокс суисайд))0)0)
 
+            this.Controls.Add(new CheckBox()
+            {
+                Name = "oscillatorOn",
+                Location = new Point(210, 10),
+                Size = new Size(40, 30),
+                Text = "✓",
+                Checked = true,
+
+            });
 
 
 
         }
 
         public WaveForm WaveForm { get; private set;  }
-
+        public bool On => ((CheckBox)this.Controls["oscillatorOn"]).Checked;
         private void WaveButton_Click(object sender, EventArgs e)
         {
             Button button = (Button)sender;
